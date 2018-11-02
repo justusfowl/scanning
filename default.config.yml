@@ -1,0 +1,18 @@
+
+users: 
+  - user: "USER NAME #1"
+    tags: 
+      - "TAG #1"
+      - "TAG #2"
+      - ...
+    email: "USER EMAIL"
+    folder: "MAIN_USER_FOLDER"
+  - user: "NAME OF USER #2"
+    tags: 
+      ...
+
+
+catch_all_user:
+  user: "catchall"
+  email : "CATCHALL_EMAIL_ADDRESS"
+  folder : ""
