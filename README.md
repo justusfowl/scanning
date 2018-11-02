@@ -2,7 +2,7 @@
 
 Purpose: Digitize all incoming physical mail and letters in order to be able to full-text search all mail through OCR and sandwich PDFs
 
-Requires tesseract
+Requires tesseract and rabbitMQ
 Requires python packages (c.f. requirements.txt) 
 
 install -> installation scripts as service under linux
