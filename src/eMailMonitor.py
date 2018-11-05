@@ -82,14 +82,14 @@ class eMailMonitor:
                 pdf.add_page()
                 page_image = Image.open(image)
                 w_orig, h_orig = page_image.size
-                w, h = get_resized(w_orig, h_orig)
+                w, h = self.get_resize_measure(w_orig, h_orig) 
                 pdf.image(image,0,0,w,h)
             pdf.output(os.path.join(self.TARGET_PATH_RAW_SCANS, out_name), "F")
         except: 
-            logging.errort("Something went wrong creating the PDF from image_list: ", " ".join(map(str, imagelist)))
+            logging.error("Something went wrong creating the PDF from image_list: ", " ".join(map(str, imagelist)))
     
     @staticmethod
-    def get_resized(w, h): 
+    def get_resize_measure(w, h): 
         try:
             page_width = 210
             page_height = 297
@@ -151,9 +151,9 @@ class eMailMonitor:
                         os.remove(tmp_item)
 
                     elif file_extension.lower() in [".jpeg", ".jpg", ".png", ".tiff"]:
-                        image_path = ensure_jpg(tmp_item)
+                        image_path = self.ensure_jpg(tmp_item)
 
-                        rotate_image(image_path)
+                        self.rotate_image(image_path) 
 
                         image_list.append(image_path)
 
