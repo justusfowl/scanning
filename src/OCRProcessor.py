@@ -347,7 +347,7 @@ class OCRProcessor:
 
             result_obj[str(user["email"])]["rel_paths"].append(rel_letter_path)
 
-        result_obj
+        return result_obj
 
     def callback(self, ch, method, properties, body):
 
@@ -360,8 +360,7 @@ class OCRProcessor:
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
         
-        for result in result_obj: 
-            
+        for result in result_obj:
             self.send_email_update(result_obj[result])
 
     def init_consuming(self):
