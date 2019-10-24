@@ -42,7 +42,8 @@ logger.setLevel(logging.INFO)
 
 class OCRProcessor:
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, **kwargs):
+
         self.IN_PATH = os.environ.get("IN_PATH")
         self.TIFF_PATH = os.environ.get("TIFF_PATH")
         self.OUT_PATH = os.environ.get("OUT_PATH")
@@ -54,10 +55,13 @@ class OCRProcessor:
         # TODO: let config withdraw from DB
         self.config = cfg["users"]
 
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(os.environ.get("MQ_HOST"),heartbeat=0,blocked_connection_timeout=300))
-        self.channel = self.connection.channel()
-        self.channel.queue_declare(queue=os.environ.get("MQ_QUEUE_INBOUND"))
-        self.channel.basic_qos(prefetch_count=1)
+        if 'dev' in kwargs:
+            print("Run in development mode...")
+        else:
+            self.connection = pika.BlockingConnection(pika.ConnectionParameters(os.environ.get("MQ_HOST"),heartbeat=0,blocked_connection_timeout=300))
+            self.channel = self.connection.channel()
+            self.channel.queue_declare(queue=os.environ.get("MQ_QUEUE_INBOUND"))
+            self.channel.basic_qos(prefetch_count=1)
 
     # # Pre-Processing
 
@@ -107,7 +111,7 @@ class OCRProcessor:
         
         logging.info("Conversion preprocessing into TIFF for file {}".format(tiff_path))
         
-        convert_cmd = 'convert -density 300 "{}" -quality 7 -depth 8 -normalize "{}"'.format(file_path, tiff_path)
+        convert_cmd = 'convert -density 300 "%s" -quality 7 -depth 8 -normalize "%s"' % (file_path, tiff_path)
         conversion = os.system(convert_cmd)
 
         img = Image.open(tiff_path)
@@ -316,37 +320,43 @@ class OCRProcessor:
         # send update to user
         return user, rel_letter_path
 
+    def exec_file(self, file_path, file_name):
+
+        logging.info("Clean intermediate files {}".format(file_path))
+
+        self.clean_intermediate_files(file_name)
+
+        logging.info("Start processing file {}".format(file_path))
+
+        sub_docs = self.pre_process_file(file_path, file_name)
+
+        result_obj = {}
+
+        for doc in sub_docs:
+            f_p = doc["file_path"]
+            f_n = doc["file_name"]
+
+            user, rel_letter_path = self.process_file(f_p, f_n)
+
+            if str(user["email"]) not in result_obj:
+                result_obj[str(user["email"])] = {
+                    "user_obj": user,
+                    "rel_paths": []
+                }
+
+            result_obj[str(user["email"])]["rel_paths"].append(rel_letter_path)
+
+        result_obj
+
     def callback(self, ch, method, properties, body):
 
         requestParams = json.loads(body.decode('utf-8'))
         
         file_path = requestParams["filepath"] 
         file_name = requestParams["filename"]
-        
-        logging.info("Clean intermediate files {}".format(file_path))
-        
-        self.clean_intermediate_files(file_name)
-        
-        logging.info("Start processing file {}".format(file_path))
-        
-        sub_docs = self.pre_process_file(file_path, file_name)
-        
-        result_obj = {}
-        
-        for doc in sub_docs: 
-            f_p = doc["file_path"]
-            f_n = doc["file_name"]
-            
-            user, rel_letter_path = self.process_file(f_p, f_n)
-            
-            if str(user["email"]) not in result_obj:
-                result_obj[str(user["email"])] = {
-                    "user_obj" : user, 
-                    "rel_paths" : []
-                }
-            
-            result_obj[str(user["email"])]["rel_paths"].append(rel_letter_path)
-        
+
+        result_obj = self.exec_file(file_path, file_name)
+
         ch.basic_ack(delivery_tag=method.delivery_tag)
         
         for result in result_obj: 
