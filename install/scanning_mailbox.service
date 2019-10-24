@@ -1,0 +1,12 @@
+[Unit]
+Description=Scanning | Mailbox retrieval
+
+[Service]
+Type=simple
+ExecStart=/home/uli/anaconda2/envs/scanning/bin/python3 /opt/scanning -r mailbox
+WorkingDirectory=/opt/scanning
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=sysinit.target

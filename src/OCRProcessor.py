@@ -271,12 +271,15 @@ class OCRProcessor:
         
         pdf_cmd = 'tesseract -l deu "{}" "{}" pdf'.format(tiff_path, file_path_out)
         os.system(pdf_cmd)
-        
-        txt_cmd = 'tesseract -l deu "{}" "{}"'.format(tiff_path, file_path_txt)
-        os.system(txt_cmd)
-        
-        string = open(file_path_txt + ".txt", 'r').read()
-        user = self.identify_user(string)
+
+        img = Image.open(tiff_path)
+        txt = ''
+
+        for i in range(img.n_frames):
+            img.seek(i)
+            txt += pytesseract.image_to_string(img)
+
+        user = self.identify_user(txt)
         
         user_mailbox = ""
         
@@ -285,7 +288,6 @@ class OCRProcessor:
 
             if not os.path.exists(user_mailbox):
                 os.makedirs(user_mailbox)
-
         else:
             user = self.catch_all_user
             user_mailbox = os.path.join(os.environ.get("PATH_MAILBOX_BASE"), "_mailbox")
@@ -307,11 +309,10 @@ class OCRProcessor:
         
         self.move_file(out_file_path, user_mailbox)
 
-        # index file
-        if os.environ.get("FLAG_ADD_TO_SOLR_INDEX"):
-
-            index_cmd = '/opt/solr-7.4.0/bin/post -c {} "{}" -params "{}" '.format(os.environ.get("SOLR_COLLECTION"), final_path,params)
-            os.system(index_cmd)
+        # index file to SOLR deactivated
+        #if os.environ.get("FLAG_ADD_TO_SOLR_INDEX"):
+        #    index_cmd = '/opt/solr-7.4.0/bin/post -c {} "{}" -params "{}" '.format(os.environ.get("SOLR_COLLECTION"), final_path,params)
+        #    os.system(index_cmd)
         
         #clean tiff and inbound file
         os.remove(file_path)
