@@ -60,49 +60,53 @@ class ScanDirectoryMonitor:
         files_arr = {}
 
         while 1:
-            time.sleep (10)
-            for f in os.listdir(path_to_watch):
-                filename, file_extension = os.path.splitext(f)
-                full_file_path = os.path.join(path_to_watch,f)
-                full_file_processing = os.path.join(self.path_processing, f)
+            try:
 
-                if os.path.isfile(full_file_path) and file_extension in self.allowed_file_extensions:
-                    filesize = os.path.getsize(full_file_path)
+                time.sleep (10)
+                for f in os.listdir(path_to_watch):
+                    filename, file_extension = os.path.splitext(f)
+                    full_file_path = os.path.join(path_to_watch,f)
+                    full_file_processing = os.path.join(self.path_processing, f)
 
-                    if filename not in files_arr:
+                    if os.path.isfile(full_file_path) and file_extension in self.allowed_file_extensions:
+                        filesize = os.path.getsize(full_file_path)
 
-                        files_arr[filename] = {
-                            "size" : filesize
-                        }
+                        if filename not in files_arr:
 
-                        logging.info("new file {} recognized with size {}".format(f, filesize))
-                    else:
+                            files_arr[filename] = {
+                                "size" : filesize
+                            }
 
-                        logging.info("filesize: {}".format(filesize))
-                        if filesize > files_arr[filename]["size"]:
-                            files_arr[filename]["size"] = filesize
-
-                            logging.info("file {} is growing to new size {} ".format(f, filesize))
+                            logging.info("new file {} recognized with size {}".format(f, filesize))
                         else:
-                            if files_arr[filename]["size"] > 0:
 
-                                logging.info("file is complete {} and moved ".format(f))
+                            logging.info("filesize: {}".format(filesize))
+                            if filesize > files_arr[filename]["size"]:
+                                files_arr[filename]["size"] = filesize
 
-                                file_name = uuid.uuid1().hex
-                                target_file_name = file_name + file_extension
-                                shutil.move(full_file_path, os.path.join(self.path_processing,target_file_name))
-                                files_arr.pop(filename, None)
+                                logging.info("file {} is growing to new size {} ".format(f, filesize))
+                            else:
+                                if files_arr[filename]["size"] > 0:
 
-                                logging.info("{} complete".format(filename))
+                                    logging.info("file is complete {} and moved ".format(f))
 
-                                message = {
-                                    "filename" : file_name,
-                                    "filepath" : os.path.join(self.path_processing,target_file_name),
-                                    "date" : datetime.datetime.now().isoformat()
-                                }
+                                    file_name = uuid.uuid1().hex
+                                    target_file_name = file_name + file_extension
+                                    shutil.move(full_file_path, os.path.join(self.path_processing,target_file_name))
+                                    files_arr.pop(filename, None)
 
-                                self.publish_message(message)
-                                logging.info("{} published to queue".format(filename))
+                                    logging.info("{} complete".format(filename))
+
+                                    message = {
+                                        "filename" : file_name,
+                                        "filepath" : os.path.join(self.path_processing,target_file_name),
+                                        "date" : datetime.datetime.now().isoformat()
+                                    }
+
+                                    self.publish_message(message)
+                                    logging.info("{} published to queue".format(filename))
+            except Exception as e:
+                logging.error("{} error monitoring the directory".format(e))
 
     def init_monitoring(self): 
         
