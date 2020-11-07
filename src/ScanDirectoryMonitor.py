@@ -8,6 +8,8 @@ import pika
 import json
 import datetime
 import logging
+import ssl
+from pathlib import Path
 
 from multiprocessing import Process
 from logging.handlers import RotatingFileHandler
@@ -45,7 +47,24 @@ class ScanDirectoryMonitor:
 
         try: 
             logging.info('Publishing scan into queue')
-            connection = pika.BlockingConnection(pika.ConnectionParameters(os.environ.get("MQ_HOST")))
+
+            ca = Path(__file__).parent / "../certs/ca.crt"
+            crt = Path(__file__).parent / "../certs/client-cert.pem"
+            key = Path(__file__).parent / "../certs/client-key.pem"
+
+            context = ssl.create_default_context(cafile=ca)
+            context.load_cert_chain(crt, key)
+            ssl_options = pika.SSLOptions(context, "kirapp2")
+
+            credentials = pika.PlainCredentials(os.environ.get("MQ_USER"), os.environ.get("MQ_PASS"))
+            parameters = pika.ConnectionParameters(os.environ.get("MQ_HOST"),
+                                                   os.environ.get("MQ_PORT"),
+                                                   os.environ.get("MQ_VIRTUAL_HOST"),
+                                                   credentials, heartbeat=0, blocked_connection_timeout=300,
+                                                   ssl_options=ssl_options)
+            connection = pika.BlockingConnection(parameters)
+
+            # connection = pika.BlockingConnection(pika.ConnectionParameters(os.environ.get("MQ_HOST")))
             channel = connection.channel()
             channel.queue_declare(queue=os.environ.get("MQ_QUEUE_INBOUND"))
             channel.basic_publish(exchange='', routing_key=os.environ.get("MQ_QUEUE_INBOUND"), body=json.dumps(msg, ensure_ascii=False))

@@ -49,6 +49,10 @@ Gruntfile.js
 
 .env
 
+/certs/*
+
+*.pyc
+
 .audit.json
 
 /logs/*

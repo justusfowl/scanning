@@ -14,6 +14,8 @@ import os
 import smtplib
 import logging
 import uuid
+import ssl
+from pathlib import Path
 import subprocess 
 
 from email.headerregistry import Address
@@ -58,7 +60,23 @@ class OCRProcessor:
         if 'dev' in kwargs:
             print("Run in development mode...")
         else:
-            self.connection = pika.BlockingConnection(pika.ConnectionParameters(os.environ.get("MQ_HOST"),heartbeat=0,blocked_connection_timeout=300))
+
+            ca = Path(__file__).parent / "../certs/ca.crt"
+            crt = Path(__file__).parent / "../certs/client-cert.pem"
+            key = Path(__file__).parent / "../certs/client-key.pem"
+
+            context = ssl.create_default_context(cafile=ca)
+            context.load_cert_chain(crt, key)
+            ssl_options = pika.SSLOptions(context, "kirapp2")
+
+            credentials = pika.PlainCredentials(os.environ.get("MQ_USER"), os.environ.get("MQ_PASS"))
+            parameters = pika.ConnectionParameters(os.environ.get("MQ_HOST"),
+                                                   os.environ.get("MQ_PORT"),
+                                                   os.environ.get("MQ_VIRTUAL_HOST"),
+                                                   credentials, heartbeat=0, blocked_connection_timeout=300,
+                                                   ssl_options=ssl_options)
+            self.connection = pika.BlockingConnection(parameters)
+            # self.connection = pika.BlockingConnection(pika.ConnectionParameters(os.environ.get("MQ_HOST"),heartbeat=0,blocked_connection_timeout=300))
             self.channel = self.connection.channel()
             self.channel.queue_declare(queue=os.environ.get("MQ_QUEUE_INBOUND"))
             self.channel.basic_qos(prefetch_count=1)
@@ -368,5 +386,6 @@ class OCRProcessor:
         logging.info("start consuming...")
         
         # receive message and complete simulation
-        self.channel.basic_consume(self.callback, queue='inboundscans')
+        self.channel.basic_consume(
+            queue='inboundscans', on_message_callback=self.callback)
         self.channel.start_consuming()
